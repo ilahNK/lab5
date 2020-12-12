@@ -1,52 +1,42 @@
 import socket
-import tqdm
+import sys
 import os
-# device's IP address
-SERVER_HOST = ' '
-SERVER_PORT =8080
-# receive 4096 bytes each time
-BUFFER_SIZE = 4096
-SEPARATOR = "<SEPARATOR>"
-# create the server socket
-# TCP socket
-s = socket.socket()
-# bind the socket to our local address
-s.bind(('', SERVER_PORT))
-# enabling our server to accept connections
-# 5 here is the number of unaccepted connections that
-# the system will allow before refusing new connections
-s.listen(5)
-print(f"[*] Listening as {SERVER_HOST}:{SERVER_PORT}")
-# accept connection if there is any
-client_socket, address = s.accept() 
-# if below code is executed, that means the sender is connected
-print(f"[+] {address} is connected.")
-# receive the file infos
-# receive using client socket, not server socket
-received = client_socket.recv(BUFFER_SIZE).decode()
-filename = received.split(SEPARATOR)
-# remove absolute path if there is
-#filename = os.path.basename(filename)
-# convert to integer
-#filesize = int(filesize)
-# start receiving the file from the socket
-# and writing to the file stream
-progress = tqdm.tqdm(f"Receiving {filename}")
-with open(filename,"wb") as f:
-    for _ in progress:
-        # read 1024 bytes from the socket (receive)
-        bytes_read = client_socket.recv(BUFFER_SIZE)
-        if not bytes_read:    
-            # nothing is received
-            # file transmitting is done
+from _thread import *
+
+serverSocket = socket.socket()
+host = ''
+port = 8080
+ThreadCount = 0
+
+try:
+    serverSocket.bind((host, port))
+except socket.error as e:
+    print(str(e))
+
+print(f"[*] Listening as {host}:{port}")
+serverSocket.listen(5)
+
+def threaded_Client(connection):
+    connection.send(str.encode('READY'))
+    while True:
+        data = connection.recv(1024)
+        reply = "Message from Server:Receiving file" + data.decode('utf-8')
+        if not data:
             break
-        # write to the file the bytes we just received
-        f.write(bytes_read)
-        # update the progress bar
-        progress.update(len(bytes_read))
+        connection.sendall(str.encode(reply))
+    connection.close()
 
-# close the client socket
-client_socket.close()
-# close the server socket
-s.close()
 
+while True:
+	Client, addr = serverSocket.accept()
+	print("Connected to: " + addr[0] + ':' + str(addr[1]))
+	start_new_thread(threaded_Client, (Client, ))
+	ThreadCount+=1
+	print('Thread Number: ' + str(ThreadCount))
+
+	data = Client.recv(1024)
+	data = data.decode("utf-8")
+	print ("File Received \n")
+	print ("THANK YOU")
+
+serverSocket.close()
